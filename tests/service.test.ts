@@ -9,6 +9,7 @@ import { loadConfig, type Env } from "../src/config.js"
 import { FileManagerService } from "../src/service.js"
 import { HOUR_MS } from "../src/utils.js"
 
+const BASE_URL = "http://127.0.0.1:9999"
 const tempDirs: string[] = []
 
 async function createService(extra: Env = {}): Promise<{ service: FileManagerService; dir: string }> {
@@ -16,7 +17,7 @@ async function createService(extra: Env = {}): Promise<{ service: FileManagerSer
 	tempDirs.push(dir)
 	const config = loadConfig({
 		FM_DATA_DIR: dir,
-		FM_PUBLIC_BASE_URL: "http://127.0.0.1:9999",
+		FM_PUBLIC_BASE_URL: BASE_URL,
 		FM_LOG_LEVEL: "error",
 		...extra,
 	})
@@ -151,11 +152,12 @@ describe("上传与下载", () => {
 
 	it("生成的链接包含标识码与转义后的文件名", async () => {
 		const { service } = await createService()
-		const view = await service.saveFromText("x", { name: "月度 报告.txt" })
+		const fileName = "月度 报告.txt"
+		const view = await service.saveFromText("x", { name: fileName })
 
-		assert.equal(view.links.shortUrl, `http://127.0.0.1:9999/f/${view.code}`)
-		assert.equal(view.links.downloadUrl, `${view.links.shortUrl}/${encodeURIComponent("月度 报告.txt")}`)
-		assert.equal(view.links.infoUrl, `http://127.0.0.1:9999/api/files/${view.code}`)
+		assert.equal(view.links.shortUrl, `${BASE_URL}/f/${view.code}`)
+		assert.equal(view.links.downloadUrl, `${view.links.shortUrl}/${encodeURIComponent(fileName)}`)
+		assert.equal(view.links.infoUrl, `${BASE_URL}/api/files/${view.code}`)
 	})
 })
 
