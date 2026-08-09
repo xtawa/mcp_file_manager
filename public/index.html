@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="zh-CN">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<meta name="color-scheme" content="light dark" />
+		<meta name="robots" content="noindex" />
+		<title>文件上传 · mcp_file_manager</title>
+		<link rel="stylesheet" href="/assets/styles.css" />
+	</head>
+	<body>
+		<header class="topbar">
+			<div class="brand">
+				<span class="logo" aria-hidden="true">📎</span>
+				<div>
+					<h1 id="page-title">文件上传</h1>
+					<p id="page-hint" class="muted">上传后会得到一个标识码，把它告诉 AI，AI 就能取用这个文件。</p>
+				</div>
+			</div>
+			<p id="retention-badge" class="badge" hidden></p>
+		</header>
+
+		<p id="fatal" class="fatal" hidden></p>
+		<noscript>
+			<p class="fatal">这个页面需要启用 JavaScript 才能上传文件。</p>
+		</noscript>
+
+		<main>
+			<section class="card" id="upload-card">
+				<div id="dropzone" class="dropzone" role="button" tabindex="0" aria-describedby="dropzone-hint">
+					<p class="dropzone-title">拖拽文件到这里，或点击选择</p>
+					<p id="dropzone-hint" class="muted small">也可以直接用 Ctrl / ⌘ + V 粘贴文件或截图</p>
+				</div>
+				<input id="file-input" type="file" multiple hidden />
+
+				<ul id="pending-list" class="pending" hidden></ul>
+
+				<details class="advanced">
+					<summary>高级选项</summary>
+					<div class="grid">
+						<label class="field">备注<input id="description-input" autocomplete="off" placeholder="给 AI 的说明，可选" /></label>
+						<label class="field">标签<input id="tags-input" autocomplete="off" placeholder="逗号分隔，例如 财务,Q3" /></label>
+						<label class="field" id="ttl-field">保留时长（小时）<input id="ttl-input" type="number" min="1" step="1" /></label>
+					</div>
+				</details>
+
+				<label class="field" id="token-field" hidden>API Token<input id="token-input" type="password" autocomplete="off" placeholder="服务端已设置 FM_API_TOKEN" /></label>
+
+				<div class="actions">
+					<button id="upload-button" class="button primary" type="button" disabled>上传</button>
+					<button id="clear-button" class="button ghost" type="button" hidden>清空列表</button>
+				</div>
+				<p id="upload-error" class="error" hidden></p>
+			</section>
+
+			<section id="results" class="stack" hidden>
+				<h2>本次上传</h2>
+				<div id="result-list" class="stack"></div>
+			</section>
+
+			<section class="card" id="lookup-card">
+				<h2>用标识码找文件</h2>
+				<p class="muted small">忘了文件在哪？把标识码贴进来即可拿回下载链接。</p>
+				<div class="row">
+					<input id="lookup-input" autocomplete="off" placeholder="例如 7K2QF-9XM4T（大小写、连字符都不敏感）" />
+					<button id="lookup-button" class="button ghost" type="button">查询</button>
+				</div>
+				<p id="lookup-status" class="muted small" hidden></p>
+				<div id="lookup-result" class="stack"></div>
+			</section>
+
+			<section class="card" id="history-card" hidden>
+				<div class="row space-between">
+					<h2>最近上传</h2>
+					<button id="history-clear" class="button ghost small" type="button">清除本机记录</button>
+				</div>
+				<p class="muted small">只保存在这台浏览器里，方便你回查标识码；不代表服务端的全部文件。到期的记录会自动消失。</p>
+				<div id="history-list" class="stack"></div>
+			</section>
+		</main>
+
+		<footer class="foot muted small">
+			<span id="foot-limits"></span>
+			<span id="foot-version"></span>
+		</footer>
+
+		<template id="file-card-template">
+			<article class="card file-card">
+				<div class="code-row">
+					<span class="muted small">标识码</span>
+					<button class="code" type="button" data-code title="点击复制标识码"></button>
+					<span class="copied" data-copied hidden></span>
+				</div>
+				<dl class="meta">
+					<div><dt>文件</dt><dd data-name></dd></div>
+					<div><dt>大小</dt><dd data-size></dd></div>
+					<div><dt>到期</dt><dd data-expires></dd></div>
+				</dl>
+				<div class="actions">
+					<a class="button ghost" data-download target="_blank" rel="noopener">下载</a>
+					<button class="button ghost" type="button" data-copy-link>复制链接</button>
+					<button class="button ghost" type="button" data-copy-all>复制给 AI</button>
+				</div>
+			</article>
+		</template>
+
+		<script src="/assets/app.js"></script>
+	</body>
+</html>
