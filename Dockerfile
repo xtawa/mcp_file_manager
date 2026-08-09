@@ -13,6 +13,8 @@ WORKDIR /app
 COPY package.json ./
 RUN npm install --omit=dev && npm cache clean --force
 COPY --from=build /app/dist ./dist
+# 前端页面是纯静态资源，不经过构建，直接拷进镜像
+COPY public ./public
 
 ENV FM_HOST=0.0.0.0 \
     FM_PORT=8787 \

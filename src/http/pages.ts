@@ -23,4 +23,6 @@ export function sendAppPage(res: Response): void {
 		res
 			.status(500)
 			.type("text/plain; charset=utf-8")
-			.send("前端页面资源缺失：请确认部署时包含了仓库根目录下的 public/ 
+			.send("前端资源缺失：请确认部署时一并发布了仓库根目录下的 public/。")
+	})
+}
