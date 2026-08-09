@@ -9,7 +9,8 @@ import { createMcpServer } from "../mcp/server.js"
 import type { FileManagerService, FileView } from "../service.js"
 import type { UploadSource } from "../store.js"
 import { contentDisposition, formatBytes, formatDuration, parseTags, timingSafeEquals } from "../utils.js"
-import { renderUploadPage } from "./pages.js"
+import { SERVICE_NAME, SERVICE_VERSION } from "../version.js"
+import { publicDir, sendAppPage } from "./pages.js"
 
 /**
  * 接收 multipart/form-data 上传。文件流直接交给 service 写盘，
@@ -98,7 +99,7 @@ export function createHttpApp(service: FileManagerService): Express {
 		next()
 	})
 
-	/** 写接口鲁棒校验；未配置 FM_API_TOKEN 时不校验（仅适合本机）。 */
+	/** 写接口鉴权校验；未配置 FM_API_TOKEN 时不校验（仅适合本机）。 */
 	const requireToken = (req: Request, res: Response, next: NextFunction): void => {
 		const expected = config.apiToken
 		if (!expected) {
@@ -116,25 +117,32 @@ export function createHttpApp(service: FileManagerService): Express {
 		res.status(401).json({ error: { code: "unauthorized", message: "需要有效的 API Token" } })
 	}
 
-	// ---------------------------------------------------------------- 页面
+	// ---------------------------------------------------------------- 前端页面
 
+	// 静态资源（无构建步骤，直接发布 public/ 目录）
+	app.use("/assets", express.static(publicDir, { index: false, dotfiles: "ignore" }))
+
+	// 上传页：拖拽上传 + 展示标识码 + 标识码反查
 	app.get("/", (_req, res) => {
-		res.type("html").send(
-			renderUploadPage({
-				action: "/api/upload",
-				heading: "文件上传",
-				hint: `上传完成后会得到一个标识码与下载链接，把标识码告知 AI 即可让它取用文件。文件将在 ${retention}后自动删除。`,
-				retention,
-				defaultTtlHours: config.defaultTtlHours,
-				maxUpload: formatBytes(config.maxUploadBytes),
-				requiresToken: Boolean(config.apiToken),
-				allowTtlOverride: true,
-			}),
-		)
+		sendAppPage(res)
 	})
 
 	app.get("/healthz", (_req, res) => {
-		res.json({ status: "ok", service: "mcp-file-manager", retentionHours: config.defaultTtlHours })
+		res.json({ status: "ok", service: SERVICE_NAME, retentionHours: config.defaultTtlHours })
+	})
+
+	/** 前端启动时拉取的公开配置：只包含页面渲染需要的限额与保留策略。 */
+	app.get("/api/config", (_req, res) => {
+		res.json({
+			service: SERVICE_NAME,
+			version: SERVICE_VERSION,
+			retention,
+			defaultTtlHours: config.defaultTtlHours,
+			maxTtlHours: config.maxTtlHours,
+			maxUploadBytes: config.maxUploadBytes,
+			maxUploadHuman: formatBytes(config.maxUploadBytes),
+			requiresToken: Boolean(config.apiToken),
+		})
 	})
 
 	// ---------------------------------------------------------------- 上传
@@ -146,21 +154,22 @@ export function createHttpApp(service: FileManagerService): Express {
 	})
 
 	// 一次性上传链接（由 MCP 工具 create_upload_link 生成，不需要 Token）
-	app.get("/u/:ticket", (req, res, next) => {
+	app.get("/u/:ticket", (_req, res) => {
+		// 票据有效性交由前端请求 /api/tickets/:id 判定，这样失效链接也能看到友好提示
+		sendAppPage(res)
+	})
+
+	/** 票据详情：拿到票据就等于持有凭证，因此不需要额外鉴权。 */
+	app.get("/api/tickets/:ticket", (req, res, next) => {
 		try {
 			const ticket = service.requireTicket(req.params.ticket)
-			res.type("html").send(
-				renderUploadPage({
-					action: `/u/${ticket.id}`,
-					heading: "上传文件给 AI",
-					hint: ticket.note ?? `这是一个临时上传链接，文件将在 ${formatDuration(ticket.fileTtlHours)}后自动删除。`,
-					retention: formatDuration(ticket.fileTtlHours),
-					defaultTtlHours: ticket.fileTtlHours,
-					maxUpload: formatBytes(config.maxUploadBytes),
-					requiresToken: false,
-					allowTtlOverride: false,
-				}),
-			)
+			res.json({
+				id: ticket.id,
+				note: ticket.note ?? null,
+				fileTtlHours: ticket.fileTtlHours,
+				retention: formatDuration(ticket.fileTtlHours),
+				uploadUrl: `/u/${ticket.id}`,
+			})
 		} catch (error) {
 			next(error)
 		}
@@ -220,7 +229,7 @@ export function createHttpApp(service: FileManagerService): Express {
 		}
 	})
 
-	// 列表会泄露全部标识码，必须鲁棒。
+	// 列表会泄露全部标识码，必须鉴权。
 	app.get("/api/files", requireToken, (req, res, next) => {
 		try {
 			res.json(
