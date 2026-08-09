@@ -1,0 +1,18 @@
+{
+  "_comment": "把路径换成你本地的绝对路径，先执行 npm install && npm run build。stdio 模式会同时启动本地文件服务，否则下载链接无人响应。",
+  "mcpServers": {
+    "file-manager": {
+      "command": "node",
+      "args": ["/absolute/path/to/mcp_file_manager/dist/index.js"],
+      "env": {
+        "FM_DATA_DIR": "/absolute/path/to/mcp_file_manager/data",
+        "FM_HOST": "127.0.0.1",
+        "FM_PORT": "8787",
+        "FM_PUBLIC_BASE_URL": "http://localhost:8787",
+        "FM_TTL_HOURS": "24",
+        "FM_MAX_UPLOAD_MB": "100",
+        "FM_LOG_LEVEL": "info"
+      }
+    }
+  }
+}
