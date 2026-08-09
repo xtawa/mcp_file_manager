@@ -1,0 +1,20 @@
+services:
+  file-manager:
+    build: .
+    image: mcp-file-manager
+    restart: unless-stopped
+    ports:
+      - "8787:8787"
+    environment:
+      FM_HOST: 0.0.0.0
+      FM_PORT: "8787"
+      FM_DATA_DIR: /data
+      # 保留 24 小时，到期自动删除；改成 336 即回到 14 天
+      FM_TTL_HOURS: "24"
+      FM_SWEEP_INTERVAL_MINUTES: "10"
+      FM_MAX_UPLOAD_MB: "100"
+      # 对外暴露时请改成真实域名与强密钥
+      FM_PUBLIC_BASE_URL: http://localhost:8787
+      FM_API_TOKEN: change-me-please
+    volumes:
+      - ./data:/data
