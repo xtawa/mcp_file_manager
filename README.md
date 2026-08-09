@@ -81,7 +81,7 @@ FM_HOST=0.0.0.0 FM_API_TOKEN=你的强密钥 npm run start:http
 
 ## HTTP 接口
 
-| 方法 | 路径 | 说明 | 鲁棒 |
+| 方法 | 路径 | 说明 | 需 Token |
 | --- | --- | --- | --- |
 | GET | `/` | 上传页面 | 否 |
 | GET | `/healthz` | 健康检查 | 否 |
@@ -95,7 +95,7 @@ FM_HOST=0.0.0.0 FM_API_TOKEN=你的强密钥 npm run start:http
 | GET/POST | `/u/:ticket` | 临时上传页面与提交 | 否（票据即凭证） |
 | POST | `/mcp` | 无状态 Streamable HTTP MCP 端点 | 是 |
 
-鲁棒方式（三者均可，仅在设置了 `FM_API_TOKEN` 时生效）：`Authorization: Bearer <token>`、`X-API-Token: <token>`、`?token=<token>`。
+鉴权方式（三者均可，仅在设置了 `FM_API_TOKEN` 时生效）：`Authorization: Bearer <token>`、`X-API-Token: <token>`、`?token=<token>`。
 
 ```bash
 # 上传
@@ -117,7 +117,7 @@ curl -OJ http://localhost:8787/f/7K2QF9XM4T
 | `FM_DATA_DIR` | `./data` | 数据目录（`files/`、`tmp/`、`index.json`） |
 | `FM_HOST` / `FM_PORT` | `127.0.0.1` / `8787` | HTTP 监听地址 |
 | `FM_PUBLIC_BASE_URL` | `http://<host>:<port>` | 拼接对外链接用，反代/域名下必须设置 |
-| `FM_API_TOKEN` | 空 | 写接口鲁棒；**非本机部署强烈建议设置** |
+| `FM_API_TOKEN` | 空 | 写接口鉴权；**非本机部署强烈建议设置** |
 | `FM_MAX_UPLOAD_MB` | `100` | 单文件上限 |
 | `FM_MAX_INLINE_MB` | `4` | MCP 内联返回内容的上限，超过则只给链接 |
 | `FM_ALLOW_REMOTE_FETCH` | `1` | 是否允许 `url` 源上传 |
