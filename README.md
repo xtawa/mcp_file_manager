@@ -45,9 +45,9 @@ FM_HOST=0.0.0.0 FM_API_TOKEN=你的强密钥 npm run start:http
   "mcpServers": {
     "file-manager": {
       "command": "node",
-      "args": ["/绝对路径/mcp_file_manager/dist/index.js"],
+      "args": ["/结对路径/mcp_file_manager/dist/index.js"],
       "env": {
-        "FM_DATA_DIR": "/绝对路径/mcp_file_manager/data",
+        "FM_DATA_DIR": "/结对路径/mcp_file_manager/data",
         "FM_PUBLIC_BASE_URL": "http://localhost:8787",
         "FM_TTL_HOURS": "24"
       }
@@ -58,6 +58,30 @@ FM_HOST=0.0.0.0 FM_API_TOKEN=你的强密钥 npm run start:http
 
 > stdio 模式下会**同时**启动本地文件 HTTP 服务，否则生成的下载链接没人响应。不需要时加 `--no-http`。
 > 日志一律输出到 stderr，stdout 留给 MCP 的 JSON-RPC 通道。
+
+## 前端页面
+
+页面在 `public/` 下，是三个普通静态文件（HTML + CSS + 原生 JS），**无构建步骤、无前端依赖**，由 Express 直接托管：
+
+| 入口 | 用途 |
+| --- | --- |
+| `GET /` | 完整上传页：自己传文件、拿标识码、反查旧标识码 |
+| `GET /u/:ticket` | 同一份页面的“一次性上传链接”形态，发给外部的人使用 |
+| `GET /assets/*` | `public/` 里的样式与脚本 |
+
+功能：
+
+- **三种选文件方式**：拖拽、点击选择、`Ctrl / ⌘ + V` 直接粘贴文件或截图；支持多文件排队逐个上传。
+- **真实上传进度**：用 XHR 上传，逐文件显示百分比进度条，失败的条目会留在列表里可直接重试。
+- **标识码是主角**：上传完成后用大号等宽字体展示 `7K2QF-9XM4T`，点一下即复制；另外提供“复制链接”与“复制给 AI”（一次拿到标识码 + 文件名 + 下载地址 + 到期时间）。
+- **到期倒计时**：每张卡片把 `expiresAt` 渲染为本地时间并满上“还剩 N 小时”，过期后变红并提示已被自动删除。
+- **标识码反查**：输入标识码即可重新拿回下载链接（走 `GET /api/files/:code`，大小写与连字符不敏感）。
+- **本机历史**：最近 20 次上传存在 `localStorage`（不上传服务器、到期自动消失），方便事后回查标识码。
+- **高级选项**：备注、标签、自定义保留小时数（上限受 `FM_MAX_TTL_HOURS` 约束）。
+- **自适应**：页面启动时拉 `GET /api/config`，自动展示当前保留策略与单文件上限（超限文件在上传前就被拦住）；仅当服务端设了 `FM_API_TOKEN` 时才显示 Token 输入框（保存在 `sessionStorage`）。
+- 适配手机屏幕，跟随系统浅色/深色主题。
+
+> 部署时请让 `public/` 与 `dist/` 一同发布（npm 包的 `files` 与 Dockerfile 都已包含）；缺少时页面会直接提示而不是返回空白。
 
 ## MCP 工具
 
@@ -84,7 +108,9 @@ FM_HOST=0.0.0.0 FM_API_TOKEN=你的强密钥 npm run start:http
 | 方法 | 路径 | 说明 | 需 Token |
 | --- | --- | --- | --- |
 | GET | `/` | 上传页面 | 否 |
+| GET | `/assets/*` | 前端静态资源 | 否 |
 | GET | `/healthz` | 健康检查 | 否 |
+| GET | `/api/config` | 页面渲染用的公开配置（保留期、上限、是否需 Token） | 否 |
 | POST | `/api/upload` | multipart 上传（字段名 `file`） | 是 |
 | GET | `/f/:code` · `/f/:code/:filename` | 下载（`?inline` 可在浏览器内预览） | 否（标识码即凭证） |
 | GET | `/api/files/:code` | 单文件元数据 JSON | 否 |
@@ -93,6 +119,7 @@ FM_HOST=0.0.0.0 FM_API_TOKEN=你的强密钥 npm run start:http
 | POST | `/api/files/:code/extend` | 延期，体 `{"hours":48}` | 是 |
 | GET | `/api/stats` · POST `/api/sweep` | 状态与手动清理 | 是 |
 | GET/POST | `/u/:ticket` | 临时上传页面与提交 | 否（票据即凭证） |
+| GET | `/api/tickets/:ticket` | 票据详情（页面用于判定链接是否还有效） | 否（票据即凭证） |
 | POST | `/mcp` | 无状态 Streamable HTTP MCP 端点 | 是 |
 
 鉴权方式（三者均可，仅在设置了 `FM_API_TOKEN` 时生效）：`Authorization: Bearer <token>`、`X-API-Token: <token>`、`?token=<token>`。
@@ -135,28 +162,32 @@ curl -OJ http://localhost:8787/f/7K2QF9XM4T
 ## 项目结构
 
 ```
+public/
+  index.html        上传页（/ 与 /u/:ticket 共用这一份）
+  styles.css        样式（含深色模式与移动端适配）
+  app.js            原生 JS：拖拽/粘贴、进度条、标识码复制、反查、本机历史
 src/
   index.ts          启动入口（参数解析、传输选择、优雅退出）
   service.ts        全部业务逻辑（上传/下载/列表/延期/清理/统计）
   store.ts          元数据索引（串行写队列 + 临时文件原子 rename）
-  storage.ts        文件实体存储（标识码命名，彻底隔绝路径穿越）
+  storage.ts        文件实体存储（标识码命名，彻底隔结路径穿越）
   codes.ts          标识码生成 / 归一化 / 展示格式
   retention.ts      24h 到期守护任务
   config.ts errors.ts logger.ts mime.ts utils.ts version.ts
   mcp/server.ts     9 个 MCP 工具定义
-  http/app.ts       Express 路由 + 无状态 MCP 端点
-  http/pages.ts     上传页面（无前端构建，自包含 HTML）
+  http/app.ts       Express 路由 + 静态资源 + 无状态 MCP 端点
+  http/pages.ts     前端目录定位与页面下发
 tests/service.test.ts
 ```
 
-分层原则：`FileManagerService` 是唯一真相，MCP 层与 HTTP 层都只是它的薄封装，保证两边的标识码、链接与保留期行为完全一致。
+分层原则：`FileManagerService` 是唯一真相，MCP 层、HTTP 层与前端都只是它的薄封装，保证各入口的标识码、链接与保留期行为完全一致。
 
 ## 开发
 
 ```bash
 npm run typecheck   # tsc --noEmit
 npm test            # node --test（含“默认 24 小时”与清理行为的回归用例）
-npm run build
+npm run build       # 只编译 TypeScript；public/ 直接发布，无需构建
 ```
 
 ## Docker
@@ -171,6 +202,7 @@ docker build -t mcp-file-manager . && docker run -p 8787:8787 -v "$PWD/data:/dat
 
 - **标识码即凭证**：拿到标识码即可下载（无需 Token），分享链接前请确认接收方。标识码空间为 32^10，无法枚举。
 - 对外暴露时请务必设置 `FM_API_TOKEN`，并在反代层加上 HTTPS 与频率限制。
+- 页面上的 Token 只存在当前浏览器会话（`sessionStorage`），不会写入磁盘持久保存。
 - 如无需让 AI 读写服务器本地文件或抓取外网，请设 `FM_ALLOW_LOCAL_PATH=0`、`FM_ALLOW_REMOTE_FETCH=0`。
 - 上传的原始文件名只保存在元数据里，磁盘上使用“标识码 + 白名单扩展名”命名。
 
